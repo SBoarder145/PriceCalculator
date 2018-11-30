@@ -1,0 +1,52 @@
+Private Sub fabricOption_Change()
+    
+    If fabricOption.Value = "Custom" Then
+        Me.height = 142.8
+        submit.Top = 78
+        customLabel.Visible = True
+        customText.Visible = True
+    Else
+        Me.height = 112.8
+        submit.Top = 48
+        customLabel.Visible = False
+        customText.Visible = False
+    End If
+    
+End Sub
+
+Private Sub submit_Click()
+    
+    Dim lastRow As Integer
+    Dim choice As String
+    
+    lastRow = Worksheets("Quote").Cells(Rows.Count, 2).End(xlUp).Row
+    
+    If fabricOption.Value = "Custom" Then
+        choice = customText.Value
+        
+        If choice = "" Then
+            choice = "Custom"
+        Else
+            Do While Left(choice, 1) = " "
+                choice = Right(choice, Len(choice) - 1)
+            Loop
+            Do While Right(choice, 1) = " "
+                choice = Left(choice, Len(choice) - 1)
+            Loop
+        End If
+    Else
+        choice = fabricOption.Value
+    End If
+    
+    Worksheets("Quote").Range("D" & lastRow) = choice
+    Unload Me
+    
+End Sub
+
+Private Sub UserForm_Initialize()
+
+    Me.height = 112.8
+    submit.Top = 48
+    fabricOption.List = Array("Angelo", "Stretch", "Custom")
+
+End Sub

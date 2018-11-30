@@ -1,0 +1,70 @@
+Sub Quote_Reset()
+
+Dim lrCheck1, lrCheck2, lastRow As Integer
+
+Application.ScreenUpdating = False
+
+'Some items may need two rows; check for last used row
+lrCheck1 = Cells(Rows.Count, 2).End(xlUp).Row
+lrCheck2 = Cells(Rows.Count, 10).End(xlUp).Row
+
+If lrCheck1 < 7 And lrCheck2 < 7 Then
+    lastRow = 7
+ElseIf lrCheck1 < lrCheck2 Then
+    lastRow = lrCheck2
+Else
+    lastRow = lrCheck1
+End If
+
+'Clear values and formatting
+Worksheets("Quote").Range("B7", "Q" & lastRow).Clear
+
+With Worksheets("Quote").Range("B8", "Q206").Interior
+    .Pattern = xlNone
+    .TintAndShade = 0
+    .PatternTintAndShade = 0
+End With
+
+'Format first quote row
+Worksheets("Quote").Range("B8", "Q206").Borders.LineStyle = x1None
+
+With Worksheets("Quote").Range("B7", "Q7").Borders(xlEdgeTop)
+    .LineStyle = xlContinuous
+    .ColorIndex = xlAutomatic
+    .TintAndShade = 0
+    .Weight = xlThin
+End With
+
+With Worksheets("Quote").Range("B7", "Q7").Borders(xlEdgeBottom)
+    .LineStyle = xlContinuous
+    .ColorIndex = xlAutomatic
+    .TintAndShade = 0
+    .Weight = xlThin
+End With
+
+With Worksheets("Quote").Range("B7").Borders(xlEdgeLeft)
+    .LineStyle = xlContinuous
+    .ColorIndex = xlAutomatic
+    .TintAndShade = 0
+    .Weight = xlThin
+End With
+
+With Worksheets("Quote").Range("Q7").Borders(xlEdgeRight)
+    .LineStyle = xlContinuous
+    .ColorIndex = xlAutomatic
+    .TintAndShade = 0
+    .Weight = xlThin
+End With
+
+'AutoFit columns that are larger than default column width
+Worksheets("Quote").Cells.ColumnWidth = 8.43
+Worksheets("Quote").Columns("E").AutoFit
+Worksheets("Quote").Columns("F").AutoFit
+Worksheets("Quote").Columns("G").AutoFit
+Worksheets("Quote").Columns("H").AutoFit
+Worksheets("Quote").Columns("I").AutoFit
+Worksheets("Quote").Columns("J").AutoFit
+
+Application.ScreenUpdating = True
+
+End Sub

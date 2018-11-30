@@ -1,0 +1,3 @@
+Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+    If ActiveSheet.Name = "Fabric" Then Call Fabric_Add
+End Sub

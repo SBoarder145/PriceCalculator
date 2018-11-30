@@ -1,0 +1,401 @@
+Sub Fabric_Add()
+
+    Dim i, j, iTemp, lrCheck1, lrCheck2 As Integer
+    Dim width As Double, height As Double, poleDiameter As Double, price As Double
+    Dim desc As String
+    
+    'Validation
+    If ActiveCell = Range("fabric_reset_sheet") Then
+        Call Fabric_Reset
+        Exit Sub
+    End If
+    
+    If (Range("width_in") = "" And Range("width_ft") = "" And Range("width_mm") = "") Or _
+      (Range("height_in") = "" And Range("height_ft") = "" And Range("height_mm") = "") Then
+        MsgBox "Width and height is required. Please select a valid width and height.", vbCritical, "Invalid Size"
+        Exit Sub
+    End If
+    
+    If Selection = "N/A" Then
+        MsgBox "This print option is not available", vbExclamation, "Invalid Print Option"
+        Exit Sub
+    End If
+    
+    'Some items may have used two rows; check for last used row
+    lrCheck1 = Worksheets("Quote").Cells(Rows.Count, 2).End(xlUp).Row
+    lrCheck2 = Worksheets("Quote").Cells(Rows.Count, 10).End(xlUp).Row
+    j = 2
+    
+    If lrCheck1 < 7 And lrCheck2 < 7 Then
+        i = 7
+    ElseIf lrCheck1 < lrCheck2 Then
+        i = lrCheck2 + 1
+    Else
+        i = lrCheck1 + 1
+    End If
+
+    'Quantity
+    If Range("fabric_qty") = "" Then
+        Worksheets("Quote").Cells(i, j) = 1
+    Else
+        Worksheets("Quote").Cells(i, j) = Range("fabric_qty")
+    End If
+    
+    'Size
+    If Range("fabric_width_in") = "" And Range("fabric_width_ft") = "" Then
+        width = Math.Round(Range("fabric_width_mm") / 25.4, 4)
+    ElseIf Range("fabric_width_in") = "" And Range("fabric_width_ft") <> "" Then
+        width = Math.Round(Range("fabric_width_ft") * 12, 4)
+    Else
+        width = Range("fabric_width_in")
+    End If
+    
+    If Range("fabric_height_in") = "" And Range("fabric_height_ft") = "" Then
+        height = Math.Round(Range("fabric_height_mm") / 25.4, 4)
+    ElseIf Range("fabric_height_in") = "" And Range("fabric_height_ft") <> "" Then
+        height = Math.Round(Range("fabric_height_ft") * 12, 4)
+    Else
+        height = Range("fabric_height_in")
+    End If
+    
+    desc = width & """ x " & height & """"
+    Worksheets("Quote").Cells(i, j + 1) = desc
+    
+    'Material name
+    If ActiveCell = Range("fabric_custom_price") Then
+        desc = InputBox("Enter custom fabric name", "Custom Fabric Name")
+        
+        If desc = "" Then
+            desc = "Custom"
+        Else
+            Do While Left(choice, 1) = " "
+                desc = Right(choice, Len(choice) - 1)
+            Loop
+            Do While Right(choice, 1) = " "
+                desc = Left(choice, Len(choice) - 1)
+            Loop
+        End If
+        
+        Worksheets("Quote").Cells(i, j + 2) = desc
+    ElseIf ActiveCell = Range("fabric_3d_frame") Then
+        fabric3DFrame.Show
+    Else
+        If Selection.Offset(0, -1).NumberFormat <> "$#,##0.00" Then
+            desc = Selection.Offset(0, -1)
+        Else
+            desc = Selection.Offset(0, -2)
+        End If
+        Worksheets("Quote").Cells(i, j + 2) = Replace(desc, ":", "")
+    End If
+    
+    'Pricing
+    If Range("fabric_qty") <> "" Then
+        If Range("fabric_disc_percent") <> "" Then
+            price = ((Selection / Range("fabric_qty")) / (1 - Range("fabric_disc_percent"))) - Range("fabric_hw")
+        Else
+            price = (Selection / Range("fabric_qty")) + Range("fabric_disc_fixed") - Range("fabric_hw")
+        End If
+    Else
+        If Range("fabric_disc_percent") <> "" Then
+            price = (Selection / (1 - Range("fabric_disc_percent"))) - Range("fabric_hw")
+        Else
+            price = Selection + Range("fabric_disc_fixed") - Range("fabric_hw")
+        End If
+    End If
+    
+    'Individual Cost
+    Worksheets("Quote").Cells(i, j + 3) = price
+    
+    'Hardware
+    If Range("fabric_hw") = "" Then
+        Worksheets("Quote").Cells(i, j + 4) = 0
+    Else
+        Worksheets("Quote").Cells(i, j + 4) = Range("fabric_hw")
+    End If
+    
+    'Discount
+    If Range("fabric_disc_percent") <> "" Then
+        Worksheets("Quote").Cells(i, j + 5) = ((price + Range("fabric_hw")) * Range("fabric_disc_percent")) * -1
+    Else
+        Worksheets("Quote").Cells(i, j + 5) = (Range("fabric_disc_fixed")) * -1
+    End If
+    
+    'Final Cost
+    If Range("fabric_qty") = "" Then
+        Worksheets("Quote").Cells(i, j + 6) = Selection
+    Else
+        Worksheets("Quote").Cells(i, j + 6) = Selection / Range("fabric_qty")
+    End If
+    
+    Worksheets("Quote").Cells(i, j + 7) = Selection 'Gross Cost
+    
+    'Descriptions
+    If ActiveCell <> Range("fabric_3d_frame") Then
+        'Print Process
+        If Range("fabric_printed") = "Printed" And Worksheets("Quote").Cells(i, j + 2) <> "Blocker" Then
+            For Each cell In Range("fabric_printer_left")
+                If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
+            Next cell
+            For Each cell In Range("fabric_printer_right")
+                If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
+            Next cell
+        Else
+            Worksheets("Quote").Cells(i, j + 8) = "Unprinted"
+        End If
+        
+        If Range("fabric_sided") <> "Single Sided" Then
+            Worksheets("Quote").Cells(i, j + 9) = Range("fabric_sided")
+        End If
+        
+        'Top Edge
+        If Range("fabric_top_edge") <> "None" Then
+            If Range("fabric_top_in") <> "" Then
+                desc = Range("fabric_top_edge")
+                Select Case desc
+                    Case "Hem"
+                        desc = Range("fabric_top_in") & """ top hem"
+                    Case "Pole Pocket"
+                        desc = Range("fabric_top_in") & """ top pole pocket"
+                    Case "Pole Diameter"
+                        poleDiameter = (Range("fabric_top_in") * 2) + 0.5
+                        desc = poleDiameter & """ top pole pocket"
+                End Select
+                iTemp = 9
+                Do While iTemp > 0
+                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                        Worksheets("Quote").Cells(i, j + iTemp) = desc
+                        Exit Do
+                    Else
+                        iTemp = iTemp + 1
+                    End If
+                Loop
+            End If
+        End If
+        
+        'Bottom Edge
+        If Range("fabric_bottom_edge") <> "None" Then
+            If Range("fabric_bottom_in") <> "" Then
+                desc = Range("fabric_bottom_edge")
+                Select Case desc
+                    Case "Hem"
+                        desc = Range("fabric_bottom_in") & """ bottom hem"
+                    Case "Pole Pocket"
+                        desc = Range("fabric_bottom_in") & """ bottom pole pocket"
+                    Case "Pole Diameter"
+                        poleDiameter = (Range("fabric_bottom_in") * 2) + 0.5
+                        desc = poleDiameter & """ bottom pole pocket"
+                End Select
+                iTemp = 9
+                Do While iTemp > 0
+                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                        Worksheets("Quote").Cells(i, j + iTemp) = desc
+                        Exit Do
+                    Else
+                        iTemp = iTemp + 1
+                    End If
+                Loop
+            End If
+        End If
+        
+        'Left Edge
+        If Range("fabric_left_edge") <> "None" Then
+            If Range("fabric_left_in") <> "" Then
+                desc = Range("fabric_left_edge")
+                Select Case desc
+                    Case "Hem"
+                        desc = Range("fabric_left_in") & """ left hem"
+                    Case "Pole Pocket"
+                        desc = Range("fabric_left_in") & """ left pole pocket"
+                    Case "Pole Diameter"
+                        poleDiameter = (Range("fabric_left_in") * 2) + 0.5
+                        desc = poleDiameter & """ left pole pocket"
+                End Select
+                iTemp = 9
+                Do While iTemp > 0
+                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                        Worksheets("Quote").Cells(i, j + iTemp) = desc
+                        Exit Do
+                    Else
+                        iTemp = iTemp + 1
+                    End If
+                Loop
+            End If
+        End If
+        
+        'Right Edge
+        If Range("fabric_right_edge") <> "None" Then
+            If Range("fabric_right_in") <> "" Then
+                desc = Range("fabric_right_edge")
+                Select Case desc
+                    Case "Hem"
+                        desc = Range("fabric_right_in") & """ right hem"
+                    Case "Pole Pocket"
+                        desc = Range("fabric_right_in") & """ right pole pocket"
+                    Case "Pole Diameter"
+                        poleDiameter = (Range("fabric_right_in") * 2) + 0.5
+                        desc = poleDiameter & """ right pole pocket"
+                End Select
+                iTemp = 9
+                Do While iTemp > 0
+                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                        Worksheets("Quote").Cells(i, j + iTemp) = desc
+                        Exit Do
+                    Else
+                        iTemp = iTemp + 1
+                    End If
+                Loop
+            End If
+        End If
+    
+        'Profile Cut
+        If Range("fabric_cutting") = "Profile Cut" Then
+            iTemp = 9
+                Do While iTemp > 0
+                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                        Worksheets("Quote").Cells(i, j + iTemp) = "Profile Cut"
+                        Exit Do
+                    Else
+                        iTemp = iTemp + 1
+                    End If
+                Loop
+        End If
+    End If
+
+    'Format Quote sheet
+
+    'Auto Fit
+    Worksheets("Quote").Columns("B:Q").AutoFit
+    
+    'Full row design template
+    j = 2
+    Do While j < 18
+        If Worksheets("Quote").Cells(i, 2).Offset(-1, 0).Interior.Pattern = xlNone Then
+            With Worksheets("Quote").Cells(i, j).Interior
+                .Pattern = xlSolid
+                .PatternColorIndex = xlAutomatic
+                .ThemeColor = xlThemeColorDark1
+                .TintAndShade = -0.14996795556505
+                .PatternTintAndShade = 0
+            End With
+        End If
+        With Worksheets("Quote").Cells(i, j).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous
+            .ColorIndex = xlAutomatic
+            .TintAndShade = 0
+            .Weight = xlThin
+        End With
+        If i > 7 Then
+            Worksheets("Quote").Cells(i, j).Borders(xlEdgeTop).LineStyle = xlNone
+        End If
+        j = j + 1
+    Loop
+    
+    'Currency formatting
+    For j = 5 To 9
+        Worksheets("Quote").Cells(i, j).NumberFormat = "$#,##0.00"
+    Next j
+    
+    'Vertical borders
+    With Worksheets("Quote").Cells(i, 2).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Worksheets("Quote").Cells(i, 6).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 8).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 10).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 17).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+
+End Sub
+
+Sub Fabric_Assign_Hyperlinks()
+
+Dim i, j, lastRowLeft, lastRowRight As Integer
+
+lastRowLeft = Cells(Rows.Count, 2).End(xlUp).Row
+lastRowRight = Cells(Rows.Count, 5).End(xlUp).Row
+
+For i = Range("fabric_left").Row To lastRowLeft
+    j = Range("fabric_left").Column
+    
+    ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j), _
+        Address:="#Fabric!" & Cells(i, j).Address
+    ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j + 1), _
+        Address:="#Fabric!" & Cells(i, j + 1).Address
+        
+    With Cells(i, j).Font
+        .Underline = xlUnderlineStyleNone
+        .ColorIndex = xlAutomatic
+    End With
+    With Cells(i, j + 1).Font
+        .Underline = xlUnderlineStyleNone
+        .ColorIndex = xlAutomatic
+    End With
+Next i
+
+For i = Range("fabric_right").Row To lastRowRight
+    j = Range("fabric_right").Column
+    
+    ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j), _
+        Address:="#Fabric!" & Cells(i, j).Address
+    ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j + 1), _
+        Address:="#Fabric!" & Cells(i, j + 1).Address
+        
+    With Cells(i, j).Font
+        .Underline = xlUnderlineStyleNone
+        .ColorIndex = xlAutomatic
+    End With
+    With Cells(i, j + 1).Font
+        .Underline = xlUnderlineStyleNone
+        .ColorIndex = xlAutomatic
+    End With
+Next i
+
+End Sub
+
+Sub Fabric_Reset()
+
+If MsgBox("Are you sure you want to reset this sheet?", vbYesNo, "Reset Fabric") = vbYes Then
+    Range("fabric_sizes_in").ClearContents
+    Range("fabric_sizes_ft").ClearContents
+    Range("fabric_sizes_mm").ClearContents
+    Range("fabric_edges") = "None"
+    Range("fabric_edges_in").ClearContents
+    Range("fabric_edges_mm").ClearContents
+    Range("fabric_printed") = "Printed"
+    Range("fabric_sided") = "Single Sided"
+    Range("fabric_cutting") = "None"
+    Range("fabric_hw").ClearContents
+    Range("fabric_disc_percent").ClearContents
+    Range("fabric_disc_fixed").ClearContents
+    Range("fabric_qty").ClearContents
+    Range("fabric_custom_cost").ClearContents
+    Range("fabric_disc_calc_full").ClearContents
+    Range("fabric_disc_calc_disc").ClearContents
+    Range("fabric_sq_width").ClearContents
+    Range("fabric_sq_height").ClearContents
+    Range("fabric_width_in").Select
+End If
+
+End Sub

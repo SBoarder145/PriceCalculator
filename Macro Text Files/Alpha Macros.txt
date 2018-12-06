@@ -1,0 +1,359 @@
+Sub Alpha_Add()
+    Dim i, j, iTemp, lastRow, lrCheck1, lrCheck2 As Integer
+    Dim width As Double, height As Double, price As Double
+    Dim desc As String
+    Dim sizeRange, materialRange As Range
+
+    'Validation
+    If ActiveCell = Range("alpha_reset_sheet") Then
+        Call Alpha_Reset
+        Exit Sub
+    End If
+    
+    If (Range("alpha_width_in") = "" And Range("alpha_width_ft") = "" And Range("alpha_width_mm") = "") Or _
+      (Range("alpha_height_in") = "" And Range("alpha_height_ft") = "" And Range("alpha_height_mm") = "") Then
+        MsgBox "Width and height is required. Please enter a valid width and height.", vbCritical, "Invalid Size"
+        Exit Sub
+    End If
+    
+    If ActiveCell = "QUOTE" Then
+        MsgBox "Graphic too large for tiered pricing. Please request a formal quote.", vbCritical, "Required Formal Quote"
+        Exit Sub
+    End If
+    
+    If ActiveCell = Range("alpha_custom_price") And _
+        (Range("alpha_custom_cost") = "" Or Range("alpha_custom_cost") = 0) Then
+            MsgBox "Please enter a valid custom material cost.", vbCritical, "Invalid Custom Cost"
+            Exit Sub
+    End If
+    
+    'Some items may have used two rows; check for last used row
+    lrCheck1 = Worksheets("Quote").Cells(Rows.Count, 2).End(xlUp).Row
+    lrCheck2 = Worksheets("Quote").Cells(Rows.Count, 10).End(xlUp).Row
+    j = 0
+
+    If lrCheck1 < 7 And lrCheck2 < 7 Then
+        i = 7
+    ElseIf lrCheck1 < lrCheck2 Then
+        i = lrCheck2 + 1
+    Else
+        i = lrCheck1 + 1
+    End If
+    
+    'Handle event where user selects hyperlink outside of valid size range
+    If (ActiveCell.DisplayFormat.Interior.ColorIndex = 24 Or _
+        ActiveCell.DisplayFormat.Interior.ColorIndex = -4142) And _
+        ActiveCell <> Range("alpha_custom_price") Then
+            If MsgBox("Incorrect size range. Would you like to add the correct size range price?", _
+                vbYesNo, "Incorrect Size Range") = vbNo Then
+                    Exit Sub
+            Else
+                'Find correct size range and material name
+                Set sizeRange = Alpha_FindSizeRange()
+                iTemp = sizeRange.Row
+                Set materialRange = Alpha_GetMaterial()
+                j = materialRange.Column
+                
+                'If correct size range is on opposite side of table
+                If Cells(iTemp, j).DisplayFormat.Interior.ColorIndex = 24 Or _
+                    Cells(iTemp, j).DisplayFormat.Interior.ColorIndex = -4142 Then
+                        If sizeRange.Column = Range("alpha_left").Column Then
+                            For Each cell In Range("alpha_material_left")
+                                If cell.Value = materialRange.Value Then
+                                    j = cell.Column
+                                    Exit For
+                                End If
+                            Next cell
+                        Else
+                            For Each cell In Range("alpha_material_right")
+                                If cell.Value = materialRange.Value Then
+                                    j = cell.Column
+                                    Exit For
+                                End If
+                            Next cell
+                        End If
+                End If
+                
+                Cells(iTemp, j).Select
+            End If
+    End If
+    
+    j = 2
+
+    'Quantity
+    If Range("alpha_qty") = "" Then
+        Worksheets("Quote").Cells(i, j) = 1
+    Else
+        Worksheets("Quote").Cells(i, j) = Range("alpha_qty")
+    End If
+
+    'Size
+    If Range("alpha_width_in") = "" And Range("alpha_width_ft") = "" Then
+        width = Math.Round(Range("alpha_width_mm") / 25.4, 4)
+    ElseIf Range("alpha_width_in") = "" And Range("alpha_width_ft") <> "" Then
+        width = Math.Round(Range("alpha_width_ft") * 12, 4)
+    Else
+        width = Range("alpha_width_in")
+    End If
+
+    If Range("alpha_height_in") = "" And Range("alpha_height_ft") = "" Then
+        height = Math.Round(Range("alpha_height_mm") / 25.4, 4)
+    ElseIf Range("alpha_height_in") = "" And Range("alpha_height_ft") <> "" Then
+        height = Math.Round(Range("alpha_height_ft") * 12, 4)
+    Else
+        height = Range("alpha_height_in")
+    End If
+
+    desc = width & """ x " & height & """"
+    Worksheets("Quote").Cells(i, j + 1) = desc
+    
+    'Material name
+    If ActiveCell = Range("alpha_custom_price") Then
+        desc = InputBox("Enter custom alpha name", "Custom Fabric Name")
+
+        Do While Left(choice, 1) = " "
+            desc = Right(choice, Len(choice) - 1)
+        Loop
+        Do While Right(choice, 1) = " "
+            desc = Left(choice, Len(choice) - 1)
+        Loop
+        
+        If desc = "" Then desc = "Custom"
+        Worksheets("Quote").Cells(i, j + 2) = desc
+    Else
+        desc = Alpha_GetMaterial.Value
+        Worksheets("Quote").Cells(i, j + 2) = desc
+    End If
+
+    'Pricing - Individual Cost
+    price = Selection.Value
+    Worksheets("Quote").Cells(i, j + 3) = price
+
+    'Hardware
+    If Range("alpha_hw") = "" Then
+        Worksheets("Quote").Cells(i, j + 4) = 0
+    Else
+        Worksheets("Quote").Cells(i, j + 4) = Range("alpha_hw")
+    End If
+
+    'Discount
+    If Range("alpha_disc_percent") <> "" Then
+        Worksheets("Quote").Cells(i, j + 5) = ((price + Range("alpha_hw")) * Range("alpha_disc_percent")) * -1
+    Else
+        Worksheets("Quote").Cells(i, j + 5) = (Range("alpha_disc_fixed")) * -1
+    End If
+
+    'Final Cost
+    If Range("alpha_qty") = "" Then
+        Worksheets("Quote").Cells(i, j + 6) = Selection
+    Else
+        Worksheets("Quote").Cells(i, j + 6) = Selection / Range("alpha_qty")
+    End If
+    
+    'Gross Cost
+    Worksheets("Quote").Cells(i, j + 7) = Selection
+    
+    'Descriptions
+    
+    'Print Process
+    If Range("alpha_printed") = "Unprinted" Then
+        Worksheets("Quote").Cells(i, j + 8) = "Unprinted"
+    End If
+
+    'Mounting
+    If Range("alpha_mounting") <> "None" Then
+        iTemp = 8
+        Do While iTemp > 0
+            If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                Worksheets("Quote").Cells(i, j + iTemp) = Range("alpha_mounting") & _
+                    " material mount"
+                Exit Do
+            Else
+                iTemp = iTemp + 1
+            End If
+        Loop
+    End If
+
+    'Profile Cut
+    If Range("alpha_cutting") <> "None" Then
+        iTemp = 8
+        Do While iTemp > 0
+            If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                Worksheets("Quote").Cells(i, j + iTemp) = Range("alpha_cutting")
+                Exit Do
+            Else
+                iTemp = iTemp + 1
+            End If
+        Loop
+    End If
+
+    'Format Quote sheet
+
+    'Auto Fit
+    Worksheets("Quote").Columns("B:Q").AutoFit
+
+    'Full row design template
+    j = 2
+    Do While j < 18
+        If Worksheets("Quote").Cells(i, 2).Offset(-1, 0).Interior.Pattern = xlNone Then
+            With Worksheets("Quote").Cells(i, j).Interior
+                .Pattern = xlSolid
+                .PatternColorIndex = xlAutomatic
+                .ThemeColor = xlThemeColorDark1
+                .TintAndShade = -0.14996795556505
+                .PatternTintAndShade = 0
+            End With
+        End If
+        With Worksheets("Quote").Cells(i, j).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous
+            .ColorIndex = xlAutomatic
+            .TintAndShade = 0
+            .Weight = xlThin
+        End With
+        If i > 7 Then
+            Worksheets("Quote").Cells(i, j).Borders(xlEdgeTop).LineStyle = xlNone
+        End If
+        j = j + 1
+    Loop
+
+    'Currency formatting
+    For j = 5 To 9
+        Worksheets("Quote").Cells(i, j).NumberFormat = "$#,##0.00"
+    Next j
+
+    'Vertical borders
+    With Worksheets("Quote").Cells(i, 2).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Worksheets("Quote").Cells(i, 6).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 8).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 10).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Worksheets("Quote").Cells(i, 17).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+End Sub
+
+Sub Alpha_Assign_Hyperlinks()
+
+Dim i, j, jTemp, lastRowLeft, lastRowRight As Integer
+
+Application.ScreenUpdating = False
+
+lastRowLeft = Cells(Rows.Count, Range("alpha_left").Column).End(xlUp).Row
+lastRowRight = Cells(Rows.Count, Range("alpha_right").Column).End(xlUp).Row
+
+For i = Range("alpha_left").Row To lastRowLeft
+    j = Range("alpha_left").Column
+    
+    For jTemp = 0 To 4
+        ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j + jTemp), _
+            Address:="#Alpha!" & Cells(i, j + jTemp).Address
+            
+        With Cells(i, j + jTemp).Font
+            .Underline = xlUnderlineStyleNone
+            .ColorIndex = xlAutomatic
+        End With
+    Next jTemp
+Next i
+
+For i = Range("alpha_right").Row To lastRowRight
+    j = Range("alpha_right").Column
+    
+    For jTemp = 0 To 3
+        ActiveSheet.Hyperlinks.Add Anchor:=Cells(i, j + jTemp), _
+            Address:="#Alpha!" & Cells(i, j + jTemp).Address
+            
+        With Cells(i, j + jTemp).Font
+            .Underline = xlUnderlineStyleNone
+            .ColorIndex = xlAutomatic
+        End With
+    Next jTemp
+Next i
+
+Application.ScreenUpdating = True
+
+End Sub
+
+Sub Alpha_Reset()
+
+If MsgBox("Are you sure you want to reset this sheet?", vbYesNo, "Reset Alpha") = vbYes Then
+    Range("alpha_sizes_in").ClearContents
+    Range("alpha_sizes_ft").ClearContents
+    Range("alpha_sizes_mm").ClearContents
+    Range("alpha_printed") = "Printed"
+    Range("alpha_mounting") = "None"
+    Range("alpha_cutting") = "None"
+    Range("alpha_hw").ClearContents
+    Range("alpha_disc_percent").ClearContents
+    Range("alpha_disc_fixed").ClearContents
+    Range("alpha_qty").ClearContents
+    Range("alpha_custom_cost").ClearContents
+    Range("alpha_disc_calc_full").ClearContents
+    Range("alpha_disc_calc_disc").ClearContents
+    Range("alpha_width_in").Select
+End If
+
+End Sub
+
+Function Alpha_FindSizeRange() As Range
+    
+    Dim lastRow As Integer
+    
+    lastRow = Cells(Rows.Count, 2).End(xlUp).Row
+    
+    For i = Range("alpha_left").Row To lastRow
+        If Cells(i, Range("alpha_left").Column).DisplayFormat.Interior.ColorIndex <> 24 And _
+            Cells(i, Range("alpha_left").Column).DisplayFormat.Interior.ColorIndex <> -4142 Then
+                Set Alpha_FindSizeRange = Cells(i, Range("alpha_left").Column)
+                Exit Function
+        End If
+    Next i
+    
+    For i = Range("alpha_right").Row To lastRow
+        If Cells(i, Range("alpha_right").Column).DisplayFormat.Interior.ColorIndex <> 24 And _
+            Cells(i, Range("alpha_right").Column).DisplayFormat.Interior.ColorIndex <> -4142 Then
+                Set Alpha_FindSizeRange = Cells(i, Range("alpha_right").Column)
+                Exit Function
+        End If
+    Next i
+
+End Function
+
+Function Alpha_GetMaterial() As Range
+
+    For Each cell In Range("alpha_material_left")
+        If cell.Column = Selection.Column Then
+            Set Alpha_GetMaterial = cell
+            Exit Function
+        End If
+    Next cell
+    
+    For Each cell In Range("alpha_material_right")
+        If cell.Column = Selection.Column Then
+            Set Alpha_GetMaterial = cell
+            Exit Function
+        End If
+    Next cell
+
+End Function

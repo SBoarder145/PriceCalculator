@@ -1,0 +1,15 @@
+Private Sub large_Click()
+    Dim lastRow As Integer
+    
+    lastRow = Worksheets("Quote").Cells(Rows.Count, 2).End(xlUp).Row
+    Worksheets("Quote").Cells(lastRow, 10) = "Large (120"")"
+    Unload Me
+End Sub
+
+Private Sub small_Click()
+    Dim lastRow As Integer
+    
+    lastRow = Worksheets("Quote").Cells(Rows.Count, 2).End(xlUp).Row
+    Worksheets("Quote").Cells(lastRow, 10) = "Small (60"")"
+    Unload Me
+End Sub

@@ -10,15 +10,21 @@ Sub Fabric_Add()
         Exit Sub
     End If
     
-    If (Range("width_in") = "" And Range("width_ft") = "" And Range("width_mm") = "") Or _
-      (Range("height_in") = "" And Range("height_ft") = "" And Range("height_mm") = "") Then
-        MsgBox "Width and height is required. Please select a valid width and height.", vbCritical, "Invalid Size"
+    If (Range("fabric_width_in") = "" And Range("fabric_width_ft") = "" And Range("fabric_width_mm") = "") Or _
+      (Range("fabric_height_in") = "" And Range("fabric_height_ft") = "" And Range("fabric_height_mm") = "") Then
+        MsgBox "Width and height is required. Please enter a valid width and height.", vbCritical, "Invalid Size"
         Exit Sub
     End If
     
     If Selection = "N/A" Then
         MsgBox "This print option is not available", vbExclamation, "Invalid Print Option"
         Exit Sub
+    End If
+    
+    If ActiveCell = Range("fabric_custom_price") And _
+        (Range("fabric_custom_cost") = "" Or Range("fabric_custom_cost") = 0) Then
+            MsgBox "Please enter a valid custom material cost.", vbCritical, "Invalid Custom Cost"
+            Exit Sub
     End If
     
     'Some items may have used two rows; check for last used row
@@ -65,16 +71,14 @@ Sub Fabric_Add()
     If ActiveCell = Range("fabric_custom_price") Then
         desc = InputBox("Enter custom fabric name", "Custom Fabric Name")
         
-        If desc = "" Then
-            desc = "Custom"
-        Else
-            Do While Left(choice, 1) = " "
-                desc = Right(choice, Len(choice) - 1)
-            Loop
-            Do While Right(choice, 1) = " "
-                desc = Left(choice, Len(choice) - 1)
-            Loop
-        End If
+        Do While Left(choice, 1) = " "
+            desc = Right(choice, Len(choice) - 1)
+        Loop
+        Do While Right(choice, 1) = " "
+            desc = Left(choice, Len(choice) - 1)
+        Loop
+        
+        If desc = "" Then desc = "Custom"
         
         Worksheets("Quote").Cells(i, j + 2) = desc
     ElseIf ActiveCell = Range("fabric_3d_frame") Then
@@ -127,18 +131,22 @@ Sub Fabric_Add()
         Worksheets("Quote").Cells(i, j + 6) = Selection / Range("fabric_qty")
     End If
     
-    Worksheets("Quote").Cells(i, j + 7) = Selection 'Gross Cost
+    'Gross Cost
+    Worksheets("Quote").Cells(i, j + 7) = Selection
     
     'Descriptions
     If ActiveCell <> Range("fabric_3d_frame") Then
         'Print Process
-        If Range("fabric_printed") = "Printed" And Worksheets("Quote").Cells(i, j + 2) <> "Blocker" Then
-            For Each cell In Range("fabric_printer_left")
-                If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
-            Next cell
-            For Each cell In Range("fabric_printer_right")
-                If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
-            Next cell
+        If Range("fabric_printed") = "Printed" And Worksheets("Quote").Cells(i, j + 2) <> "Blocker" And _
+            ActiveCell <> Range("fabric_custom_price") Then
+                For Each cell In Range("fabric_printer_left")
+                    If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
+                Next cell
+                For Each cell In Range("fabric_printer_right")
+                    If cell.Column = Selection.Column Then Worksheets("Quote").Cells(i, j + 8) = cell.Value
+                Next cell
+        ElseIf ActiveCell = Range("fabric_custom_price") And Range("fabric_printed") = "Printed" Then
+            fabricCustomPrintProcess.Show
         Else
             Worksheets("Quote").Cells(i, j + 8) = "Unprinted"
         End If
@@ -250,14 +258,14 @@ Sub Fabric_Add()
         'Profile Cut
         If Range("fabric_cutting") = "Profile Cut" Then
             iTemp = 9
-                Do While iTemp > 0
-                    If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
-                        Worksheets("Quote").Cells(i, j + iTemp) = "Profile Cut"
-                        Exit Do
-                    Else
-                        iTemp = iTemp + 1
-                    End If
-                Loop
+            Do While iTemp > 0
+                If Worksheets("Quote").Cells(i, j + iTemp) = "" Then
+                    Worksheets("Quote").Cells(i, j + iTemp) = "Profile Cut"
+                    Exit Do
+                Else
+                    iTemp = iTemp + 1
+                End If
+            Loop
         End If
     End If
 
